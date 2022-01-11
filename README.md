@@ -1,5 +1,6 @@
 # PolarGrabber
-Getting real-time HR data from Polar H10+ and publishing them via javascript server-side event
+Getting real-time HR data from Polar H10+ and publishing them via javascript server-side event.
+I assume it will work with any GATT HR device, not just Polar, but it is what I use it with.
 
 This thing will search for the devices supporting GATT HR measurement, select the first one returned by Windows (so if you require working with multiple, you have to rewrite that portion) and start the data gathering.
 
