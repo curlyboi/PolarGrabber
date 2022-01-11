@@ -11,6 +11,8 @@ The supplied htm file is an example that charts the HR reading into a (up to) 10
 Additionally, the program also creates a text file where it writes all the readings prefixed with current date and time for further analysis.
 
 It is a command line application and will output some symbols:
-+ symbol = new listener connected, - symbol = listener disconnected (which is detected only when trying to send HR data, not sooner given how the nature of HttpListener works in .NET), heart symbol - HR data received and processed
+plus symbol = new listener connected,
+minus symbol = listener disconnected (which is detected only when trying to send HR data, not sooner given how the nature of HttpListener works in .NET)
+heart symbol = HR data received and processed
 
 Press Enter to gracefully stop the app. If you hard-terminate the app, it will block the BT device for couple of seconds before it can be used again.
