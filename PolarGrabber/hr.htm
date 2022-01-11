@@ -1,0 +1,134 @@
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>HR</title>
+
+	<!-- amCharts javascript sources -->
+	<script src="https://cdn.amcharts.com/lib/4/core.js"></script>
+	<script src="https://cdn.amcharts.com/lib/4/charts.js"></script>
+	<script src="https://cdn.amcharts.com/lib/4/themes/material.js"></script>
+	<script src="https://cdn.amcharts.com/lib/4/themes/dark.js"></script>
+	<script src="https://cdn.amcharts.com/lib/4/lang/cs_CZ.js"></script>
+	<style>
+		body {
+			background-color: rgba(0,0,0,0);
+			margin: 0px auto;
+			overflow: hidden;
+			font-family: Arial;
+			color: white;
+			text-shadow: 1px 1px black;
+		}
+		#chartdiv {
+			width: 100%;
+			height: 100%
+		}
+		#hrdiv {
+			position: absolute;
+			top: 0;
+			left: 14;
+			font-size: 30;
+			text-shadow: 2px 2px black;
+		}
+		#peakhrdiv {
+			position: absolute;
+			top: 0;
+			left: 150;
+			font-size: 20;
+		}
+	</style>
+	
+</head>
+<body>
+	<script type="text/javascript">
+		var peakhr = 0;
+		var es;
+		const chartime = 600000; // milliseconds
+		
+		function eventConnect() {
+			es = new EventSource('http://localhost:8856/');
+			es.addEventListener('hr', eventHr);
+			es.addEventListener('error', eventError);
+			es.addEventListener('open', eventOpen);
+		}
+		
+		function eventError(event) {
+			document.getElementById('hrdiv').innerHTML = 'ERROR';
+			es.close();
+			eventConnect();
+		}
+
+		function eventOpen(event) {
+			document.getElementById('hrdiv').innerHTML = 'OPEN';
+		}
+		
+		
+		function eventHr(event) {
+			// delete values older than chartime
+			var dtold = new Date(new Date() - chartime);
+			let i = 0;
+			for (i = 0; i < chart.data.length; i++) {
+				var dt = chart.data[i].dt;
+				if (dt > dtold)
+					break;
+			}
+			if (i > 0) {
+				chart.data.splice(0, i);
+			}
+
+			// get event hr value
+			const hr = parseInt(event.data);
+			
+			// die on weird value
+			if (hr < 30)
+				return;
+
+			// add new value
+			chart.data.push({
+				"dt": new Date(),
+				"hr": hr
+			});
+			
+			// redraw chart
+			chart.validateData();
+			
+			// refresh divs
+			document.getElementById('hrdiv').innerHTML = hr + ' BPM';
+			if (hr > peakhr) {
+				// new peak
+				peakhr = hr;
+				document.getElementById('peakhrdiv').innerHTML = '(peak: ' + hr + ')';
+			}
+
+		}
+
+		// construct the chart
+		am4core.useTheme(am4themes_material);
+		am4core.useTheme(am4themes_dark);
+		
+		var chart = am4core.create("chartdiv", am4charts.XYChart);
+		chart.language.locale = am4lang_cs_CZ;
+		
+		var axTime = chart.xAxes.push(new am4charts.DateAxis());
+		
+		var axHR = chart.yAxes.push(new am4charts.ValueAxis());
+		axHR.renderer.opposite = true;
+
+		var srWeight = chart.series.push(new am4charts.LineSeries());
+		srWeight.dataFields.dateX = "dt";
+		srWeight.dataFields.valueY = "hr";
+		srWeight.yAxis = axHR;
+		srWeight.strokeWidth = 3;
+
+		// listen for backend events
+		eventConnect();
+
+	</script>
+	<div id="chartdiv"></div>
+	<div id="hrdiv"></div>
+	<div id="peakhrdiv"></div>
+	
+
+
+</body>
+
+</html>
