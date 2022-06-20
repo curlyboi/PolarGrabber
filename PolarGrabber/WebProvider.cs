@@ -10,8 +10,11 @@ namespace PolarGrabber
 {
     public class WebProvider
     {
+        // listening web server
         HttpListener hli;
+        // list of connected web clients
         List<HttpListenerResponse> subs;
+        // configured listening url
         public string url = Properties.Settings.Default.webURL;
 
         // when a browser connects
@@ -62,6 +65,7 @@ namespace PolarGrabber
 
         private void HandleRequest(IAsyncResult ar)
         {
+            // finalize the client request...
             HttpListenerContext ctx = null;
             try
             {
@@ -70,12 +74,12 @@ namespace PolarGrabber
             catch
             {
             }
-
+            // ...and start listening again
             Listen();
 
             if (ctx != null)
             {
-                HttpListenerRequest req = ctx.Request;
+                // send some headers
                 HttpListenerResponse resp = ctx.Response;
 
                 resp.AddHeader("Cache-Control", "no-cache");
@@ -94,6 +98,7 @@ namespace PolarGrabber
 
         public void SendEvent(int hr)
         {
+            // send the hr data to all connected clients that we know about
             string msgData = string.Format("event: hr\ndata: {0}\n\n", hr);
 
             byte[] eventBytes = Encoding.UTF8.GetBytes(msgData);

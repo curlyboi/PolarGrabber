@@ -22,7 +22,7 @@ namespace PolarGrabber
         // when hr value is processed from the device
         public event EventHandler<HrEventArgs> HrTaken;
 
-        protected void OnHrTaken(int hr)
+        protected void OnHrTaken(HrData hr)
         {
             HrTaken?.Invoke(this, new HrEventArgs(hr));
         }
@@ -62,12 +62,12 @@ namespace PolarGrabber
                     {
                         // use the first characteristic within HR service
                         characteristic = devchar.Characteristics[0];
+
                         // attempt encryption
                         characteristic.ProtectionLevel = GattProtectionLevel.EncryptionRequired;
-                        characteristic.ValueChanged += HrChanged;
+                        characteristic.ValueChanged += HrReceived;
 
                         GattReadClientCharacteristicConfigurationDescriptorResult desresult = await characteristic.ReadClientCharacteristicConfigurationDescriptorAsync();
-
                         if (desresult.Status != GattCommunicationStatus.Success || desresult.ClientCharacteristicConfigurationDescriptor != GattClientCharacteristicConfigurationDescriptorValue.Notify)
                         {
                             GattCommunicationStatus cstat = await characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(GattClientCharacteristicConfigurationDescriptorValue.Notify);
@@ -91,7 +91,7 @@ namespace PolarGrabber
             // stop everything properly
             if (characteristic != null)
             {
-                characteristic.ValueChanged -= HrChanged;
+                characteristic.ValueChanged -= HrReceived;
                 characteristic = null;
             }
 
@@ -104,52 +104,95 @@ namespace PolarGrabber
             isRunning = false;
         }
 
-        private void HrChanged(GattCharacteristic sender, GattValueChangedEventArgs args)
+        private void HrReceived(GattCharacteristic sender, GattValueChangedEventArgs args)
         {
             // this gets fired everytime there is HR data
             byte[] data = new byte[args.CharacteristicValue.Length];
 
             DataReader.FromBuffer(args.CharacteristicValue).ReadBytes(data);
 
-            ParseData(data);
+            HrData parsed = new HrData(data);
+
+            OnHrTaken(parsed);
         }
-
-        private void ParseData(byte[] data)
-        {
-            // ripped from some BLE HR example
-            // i know it could be simplified, but maybe there is some more use to the offset?
-
-            byte offset = 0;
-            byte flags = data[offset];
-            bool isHRLong = (flags & 0x01) != 0;
-
-            offset++;
-
-            ushort HRval = 0;
-            if (isHRLong)
-            {
-                HRval = (ushort)((data[offset + 1] << 8) + data[offset]);
-                offset += 2;
-            }
-            else
-            {
-                HRval = data[offset];
-                offset++;
-            }
-
-            OnHrTaken(HRval);
-
-        }
-
 
     }
 
+    [Flags]
+    public enum HrFlags
+    {
+        // bit mask constants from the gatt hr standard
+        None = 0,
+        HeartRateValueUINT16 = 1,
+        SensorContactStatus = 2,
+        SensorContactSupported = 4,
+        EnergyExpendedPresent = 8,
+        RRIntervalsPresent = 16
+    }
+
+    public class HrData
+    {
+        public HrFlags Flags;
+        public ushort HrValue;
+        public ushort EnergyExpended;
+        public List<ushort> RRIntervals;
+
+        public HrData(byte[] data)
+        {
+            int offset = 0;
+
+            Flags = (HrFlags)data[offset];
+            offset++;
+
+            // determine hr data structure length
+            int HrLen = ((Flags & HrFlags.HeartRateValueUINT16) == HrFlags.HeartRateValueUINT16) ? 2 : 1;
+            
+            if (HrLen == 2)
+            {
+                // uint16
+                HrValue = BitConverter.ToUInt16(data, offset);
+            }
+            else
+            {
+                // byte
+                HrValue = data[offset];
+            }
+            offset += HrLen;
+
+            // determine energy presence
+            if ((Flags & HrFlags.EnergyExpendedPresent) == HrFlags.EnergyExpendedPresent)
+            {
+                EnergyExpended = BitConverter.ToUInt16(data, offset);
+                offset += 2;
+            }
+
+            // determine hr intervals presence
+            if ((Flags & HrFlags.RRIntervalsPresent) == HrFlags.RRIntervalsPresent)
+            {
+                RRIntervals = new List<ushort>();
+                while (offset < data.Length)
+                {
+                    // read out the rest of the data to the intervals list
+                    ushort rr = BitConverter.ToUInt16(data, offset);
+                    RRIntervals.Add(rr);
+                    offset += 2;
+                }
+            }
+
+
+        }
+
+    }
+
+
+
+
     public class HrEventArgs : EventArgs
     {
-        public int HrValue { get; }
-        public HrEventArgs(int Hr)
+        public HrData HrData { get; }
+        public HrEventArgs(HrData newData)
         {
-            HrValue = Hr;
+            HrData = newData;
         }
     }
 }

@@ -14,13 +14,15 @@ namespace PolarGrabber
         static WebProvider wp;
         static HrProvider hrp;
         static StreamWriter log;
-        const string logfn = "polarlog_{0:yyyy-MM-dd_hh-mm-ss}.txt";
-        const string logevent = "{0:yyyy-MM-dd_hh-mm-ss};{1}";
+        static string logfn = Properties.Settings.Default.logFilename;
+        static string logevent = Properties.Settings.Default.logLine;
 
         static void Main(string[] args)
         {
+            // utf8 console so our hearts work :D
             Console.OutputEncoding = Encoding.UTF8;
 
+            // find the first hr-capable device
             Console.Write("Finding BLE devices with HR...");
             hrp = new HrProvider();
             hrp.FindDevice().Wait();
@@ -33,6 +35,7 @@ namespace PolarGrabber
                 return;
             }
 
+            // start event-driven hr processing
             Console.Write("Starting HR capture...");
             hrp.Start().Wait();
             if (hrp.isRunning)
@@ -43,11 +46,14 @@ namespace PolarGrabber
                 return;
             }
 
+            // initiate log file
             string logfile = string.Format(logfn, DateTime.Now);
             log = new StreamWriter(logfile);
 
+            // subscribe to the hr events
             hrp.HrTaken += SendHr;
 
+            // set up web server
             Console.Write("Initializing HTTP endpoint...");
             wp = new WebProvider();
             wp.ClientConnected += WpClientConnected;
@@ -55,7 +61,8 @@ namespace PolarGrabber
             wp.Listen();
             Console.WriteLine(string.Format("listening on {0}", wp.url));
 
-
+            // wait for enter to quit
+            // (this does not block background hr processing)
             Console.WriteLine("Press Enter to quit.");
             Console.ReadLine();
 
@@ -65,22 +72,27 @@ namespace PolarGrabber
 
         private static void WpClientConnected(object sender, EventArgs e)
         {
+            // plus symbol indicates new web client subscriber
             Console.Write("+");
         }
 
         private static void WpClientDisconnected(object sender, EventArgs e)
         {
+            // minus symbol indicates losing a web client subscriber
             Console.Write("-");
         }
 
         private static void SendHr(object sender, HrEventArgs e)
         {
-            wp.SendEvent(e.HrValue);
+            // send the hr value to all web clients
+            wp.SendEvent(e.HrData.HrValue);
             
-            string logline = string.Format(logevent, DateTime.Now, e.HrValue);
+            // log it into a file
+            string logline = string.Format(logevent, DateTime.Now, e.HrData.HrValue);
             log.WriteLine(logline);
             log.Flush();
 
+            // heart symbol indicates processed hr data
             Console.Write("\u2665");
         }
     }

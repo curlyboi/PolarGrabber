@@ -31,5 +31,23 @@ namespace PolarGrabber.Properties {
                 return ((string)(this["webURL"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("polarlog_{0:yyyy-MM-dd_hh-mm-ss}.txt")]
+        public string logFilename {
+            get {
+                return ((string)(this["logFilename"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("{0:yyyy-MM-dd_hh-mm-ss};{1}")]
+        public string logLine {
+            get {
+                return ((string)(this["logLine"]));
+            }
+        }
     }
 }
